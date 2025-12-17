@@ -57,7 +57,6 @@ app.use(
   })
 );
 app.options('*', (req, res) => {
-  // Handle preflight requests for all routes
   const origin = req.headers.origin;
   
   if (origin && isOriginAllowed(origin)) {
@@ -68,8 +67,7 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Max-Age', '86400'); // 24 hours
     return res.status(204).end();
   }
-  
-  // If origin not allowed, send 403
+
   return res.status(403).json({ error: 'Origin not allowed by CORS policy' });
 });
 
