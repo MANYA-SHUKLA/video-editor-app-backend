@@ -50,7 +50,7 @@ app.use(
     credentials: true,
   })
 );
-// Note: Explicit OPTIONS handler is not required; cors middleware will handle preflight.
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -73,7 +73,7 @@ const outputDir = path.join(__dirname, 'outputs');
 app.use('/api', uploadRoutes);
 
 app.get('/api/health', (req, res) => {
-  const dbState = mongoose.connection.readyState; // 0=disconnected,1=connected,2=connecting,3=disconnecting
+  const dbState = mongoose.connection.readyState; 
   res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
@@ -84,7 +84,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Video Editor Backend is running ');
+  res.send('Video Editor Backend is running by MANYA SHUKLA');
 });
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err && err.stack ? err.stack : err);
