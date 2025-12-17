@@ -10,9 +10,17 @@ dotenv.config();
 const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
+const DEFAULT_CLIENT_ORIGIN = 'https://video-editor-app-frontend.vercel.app'
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || DEFAULT_CLIENT_ORIGIN
+const allowedOrigins = [CLIENT_ORIGIN, 'http://localhost:3000']
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: (origin, callback) => {
+
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    callback(new Error('CORS policy: Origin not allowed'))
+  },
   credentials: true
 }));
 
