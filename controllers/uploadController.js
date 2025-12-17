@@ -102,7 +102,7 @@ const uploadController = {
       }
 
       if (job.status !== 'completed') {
-        return res.status(400).json({ 
+        return res.status(404).json({ 
           error: 'Video not ready yet', 
           status: job.status,
           progress: job.progress 

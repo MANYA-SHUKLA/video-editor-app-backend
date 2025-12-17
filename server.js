@@ -13,9 +13,10 @@ const PORT = parseInt(process.env.PORT, 10) || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 const CORS_ORIGINS = process.env.CORS_ORIGINS || CLIENT_ORIGIN;
-const allowedOrigins = CORS_ORIGINS.split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  ...CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
+  'https://video-editor-app-frontend.vercel.app'
+];
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // allow curl or server-side requests
@@ -44,12 +45,15 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (isOriginAllowed(origin)) return callback(null, true);
+      console.log('Blocked by CORS:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
+app.options('*', cors());
 
 
 app.use(express.json());
