@@ -50,7 +50,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Video Editor Backend is running');
+  res.send('Video Editor Backend is running ');
 });
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err && err.stack ? err.stack : err);
