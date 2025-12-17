@@ -63,8 +63,17 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/video-edi
   })
   .catch(err => console.error('MongoDB connection error:', err));
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Global error handler:', err);
+  if (err && (err.name === 'MulterError' || (err.message && err.message.toLowerCase().includes('invalid file type')))) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (err && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'File too large' });
+  }
+  if (err && err.message && err.message.includes('CORS policy')) {
+    return res.status(403).json({ error: err.message });
+  }
+  res.status(err && err.status ? err.status : 500).json({ error: err && err.message ? err.message : 'Something went wrong!' });
 });
 
 module.exports = app;

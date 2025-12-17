@@ -113,6 +113,7 @@ curl -X POST http://localhost:5001/api/upload \
 - Check logs printed by `server.js`, `jobQueue.js`, and `ffmpegProcessor.js` for progress and errors.
 - FFmpeg is provided via the `ffmpeg-static` package.
 - If uploads fail, verify multer file filters and file size limits in `utils/fileUpload.js`.
+- If you see a 500 response with `{"error":"Failed to upload video"}` or similar, check server logs for Redis connection errors (e.g. `ECONNREFUSED`) or MongoDB errors. Starting Redis (or running it in Docker) usually resolves this.
 
 
 ## Acknowledgements

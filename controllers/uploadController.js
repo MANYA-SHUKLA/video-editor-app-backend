@@ -43,24 +43,42 @@ const uploadController = {
         progress: 0
       });
       await job.save();
-      await videoQueue.add({
-        jobId
-      }, {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5001
-        }
-      });
+      try {
+        await videoQueue.add({
+          jobId
+        }, {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5001
+          }
+        });
 
-      res.status(200).json({
-        success: true,
-        jobId,
-        message: 'Video uploaded and processing started'
-      });
+        return res.status(200).json({
+          success: true,
+          jobId,
+          message: 'Video uploaded and processing started'
+        });
+      } catch (queueError) {
+        console.error('Failed to enqueue job:', queueError);
+        // keep job as pending and record error so it can be inspected later
+        job.status = 'pending';
+        job.error = `Failed to enqueue job: ${queueError.message}`;
+        try {
+          await job.save();
+        } catch (saveErr) {
+          console.error('Failed to update job after queue error:', saveErr);
+        }
+        return res.status(202).json({
+          success: true,
+          jobId,
+          warning: 'Video uploaded but processing is delayed (queue unavailable). The job is saved and will be processed when the queue becomes available.'
+        });
+      }
     } catch (error) {
       console.error('Upload error:', error);
-      res.status(500).json({ error: 'Failed to upload video' });
+      const message = error && error.message ? error.message : 'Failed to upload video';
+      res.status(500).json({ error: message });
     }
   },
   getJobStatus: async (req, res) => {

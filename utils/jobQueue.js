@@ -8,6 +8,10 @@ const videoQueue = new Queue('video processing', {
     port: 6379
   }
 });
+videoQueue.on('error', (err) => {
+  console.error('Queue error (Redis or Bull):', err);
+});
+
 videoQueue.process(async (job) => {
   const { jobId } = job.data;
   console.log(`Processing job: ${jobId}`);
