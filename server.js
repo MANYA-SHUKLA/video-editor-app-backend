@@ -13,6 +13,7 @@ const PORT = parseInt(process.env.PORT, 10) || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 const CORS_ORIGINS = process.env.CORS_ORIGINS || CLIENT_ORIGIN;
+
 const allowedOrigins = [
   ...CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   'https://video-editor-app-frontend.vercel.app'
@@ -21,13 +22,14 @@ const allowedOrigins = [
 function isOriginAllowed(origin) {
   if (!origin) return true; // allow curl or server-side requests
   if (allowedOrigins.includes(origin)) return true;
+
   try {
     const u = new URL(origin);
     const host = u.host;
 
     return allowedOrigins.some((o) => {
       if (o.startsWith('*.')) {
-        const suffix = o.slice(1); // remove leading '*'
+        const suffix = o.slice(1);
         return host.endsWith(suffix.replace(/^\./, '.'));
       }
       try {
@@ -41,6 +43,7 @@ function isOriginAllowed(origin) {
     return false;
   }
 }
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -53,17 +56,25 @@ app.use(
     credentials: true,
   })
 );
+
+/* ✅ REQUIRED FIX FOR NODE 22 (NO LOGIC CHANGE) */
+app.options('(.*)', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${req.ip}`);
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${req.ip}`
+  );
   next();
 });
+
 const uploadsDir = path.join(__dirname, 'uploads');
 const videosDir = path.join(uploadsDir, 'videos');
 const outputDir = path.join(__dirname, 'outputs');
-[uploadsDir, videosDir, outputDir].forEach(dir => {
+
+[uploadsDir, videosDir, outputDir].forEach((dir) => {
   try {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   } catch (err) {
@@ -74,7 +85,7 @@ const outputDir = path.join(__dirname, 'outputs');
 app.use('/api', uploadRoutes);
 
 app.get('/api/health', (req, res) => {
-  const dbState = mongoose.connection.readyState; 
+  const dbState = mongoose.connection.readyState;
   res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
@@ -87,26 +98,41 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
   res.send('Video Editor Backend is running by MANYA SHUKLA');
 });
+
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err && err.stack ? err.stack : err);
-  if (err && (err.name === 'MulterError' || (err.message && err.message.toLowerCase().includes('invalid file type')))) {
+  console.error(
+    'Global error handler:',
+    err && err.stack ? err.stack : err
+  );
+
+  if (
+    err &&
+    (err.name === 'MulterError' ||
+      (err.message &&
+        err.message.toLowerCase().includes('invalid file type')))
+  ) {
     return res.status(400).json({ error: err.message });
   }
+
   if (err && err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ error: 'File too large' });
   }
+
   if (err && err.message && err.message.includes('CORS policy')) {
     return res.status(403).json({ error: err.message });
   }
-  res.status(err && err.status ? err.status : 500).json({ error: err && err.message ? err.message : 'Something went wrong!' });
+
+  res.status(err && err.status ? err.status : 500).json({
+    error: err && err.message ? err.message : 'Something went wrong!',
+  });
 });
 
 let server;
 
-
 server = app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
 async function connectMongo(retries = 5, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -114,19 +140,29 @@ async function connectMongo(retries = 5, delayMs = 3000) {
       console.log('Connected to MongoDB');
       return;
     } catch (err) {
-      console.error(`MongoDB connection attempt ${attempt} failed:`, err && err.message ? err.message : err);
+      console.error(
+        `MongoDB connection attempt ${attempt} failed:`,
+        err && err.message ? err.message : err
+      );
       if (attempt < retries) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
   }
-  console.warn('Continuing without MongoDB. Some routes will not function until DB is available.');
+  console.warn(
+    'Continuing without MongoDB. Some routes will not function until DB is available.'
+  );
 }
 
-connectMongo().catch((e) => console.error('Unexpected Mongo connect error:', e));
+connectMongo().catch((e) =>
+  console.error('Unexpected Mongo connect error:', e)
+);
 
 function shutdown(signal) {
-  console.log(`Received ${signal}. Closing HTTP server and MongoDB connection...`);
+  console.log(
+    `Received ${signal}. Closing HTTP server and MongoDB connection...`
+  );
+
   const closeDb = () =>
     mongoose.connection
       .close(false)
