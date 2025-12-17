@@ -3,7 +3,7 @@ const fs = require('fs');
 const Job = require('../models/Job');
 const Video = require('../models/Video');
 const { v4: uuidv4 } = require('uuid');
-const videoQueue = require('../utils/jobQueue');
+const FFmpegProcessor = require('../utils/ffmpegProcessor');
 
 const uploadController = {
   uploadVideo: async (req, res) => {
@@ -44,17 +44,19 @@ const uploadController = {
       });
       await job.save();
       
-      // Process the job (either via queue or synchronously)
-      videoQueue.add({
-        jobId
-      }).then(() => {
-        console.log(`Job ${jobId} processing initiated`);
-      }).catch(async (queueError) => {
-        console.error('Failed to process job:', queueError);
-        job.status = 'failed';
-        job.error = `Failed to process job: ${queueError.message}`;
-        await job.save();
-      });
+      // Process the job synchronously
+      (async () => {
+        try {
+          const processor = new FFmpegProcessor(jobId);
+          await processor.process();
+          console.log(`Job ${jobId} processing completed`);
+        } catch (queueError) {
+          console.error('Failed to process job:', queueError);
+          job.status = 'failed';
+          job.error = `Failed to process job: ${queueError.message}`;
+          await job.save();
+        }
+      })();
 
       return res.status(200).json({
         success: true,
