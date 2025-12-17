@@ -12,18 +12,45 @@ const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CORS_ORIGINS = process.env.CORS_ORIGINS || CLIENT_ORIGIN;
+const allowedOrigins = CORS_ORIGINS.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
-// CORS: allow the frontend origin; allow no-origin requests (curl/server-to-server)
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow curl or server-side requests
-    if (origin === CLIENT_ORIGIN) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
+function isOriginAllowed(origin) {
+  if (!origin) return true; // allow curl or server-side requests
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const u = new URL(origin);
+    const host = u.host;
+
+    return allowedOrigins.some((o) => {
+      if (o.startsWith('*.')) {
+        const suffix = o.slice(1); // remove leading '*'
+        return host.endsWith(suffix.replace(/^\./, '.'));
+      }
+      try {
+        const ohost = new URL(o).host;
+        return ohost === host;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  })
+);
+// Note: Explicit OPTIONS handler is not required; cors middleware will handle preflight.
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -46,7 +73,14 @@ const outputDir = path.join(__dirname, 'outputs');
 app.use('/api', uploadRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
+  const dbState = mongoose.connection.readyState; // 0=disconnected,1=connected,2=connecting,3=disconnecting
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || 'development',
+    dbConnected: dbState === 1,
+    dbState,
+  });
 });
 
 app.get('/', (req, res) => {
@@ -67,26 +101,34 @@ app.use((err, req, res, next) => {
 });
 
 let server;
-async function start() {
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('Connected to MongoDB');
 
-    server = app.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('Failed to start app:', err);
-    process.exit(1);
+
+server = app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
+async function connectMongo(retries = 5, delayMs = 3000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await mongoose.connect(MONGODB_URI);
+      console.log('Connected to MongoDB');
+      return;
+    } catch (err) {
+      console.error(`MongoDB connection attempt ${attempt} failed:`, err && err.message ? err.message : err);
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
   }
+  console.warn('Continuing without MongoDB. Some routes will not function until DB is available.');
 }
 
-start();
+connectMongo().catch((e) => console.error('Unexpected Mongo connect error:', e));
 
 function shutdown(signal) {
   console.log(`Received ${signal}. Closing HTTP server and MongoDB connection...`);
-  if (server) server.close(() => {
-    mongoose.connection.close(false)
+  const closeDb = () =>
+    mongoose.connection
+      .close(false)
       .then(() => {
         console.log('MongoDB connection closed.');
         process.exit(0);
@@ -95,7 +137,14 @@ function shutdown(signal) {
         console.error('Error closing MongoDB connection:', err);
         process.exit(1);
       });
-  });
+
+  if (server) {
+    server.close(() => {
+      closeDb();
+    });
+  } else {
+    closeDb();
+  }
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
