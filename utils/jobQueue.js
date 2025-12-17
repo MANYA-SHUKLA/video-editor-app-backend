@@ -43,7 +43,6 @@ try {
 } catch (error) {
   console.warn('Redis not available, falling back to synchronous processing:', error.message);
   
-  // Fallback synchronous queue
   videoQueue = {
     add: async (data) => {
       console.log('Processing job synchronously:', data.jobId);
