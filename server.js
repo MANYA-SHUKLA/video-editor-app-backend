@@ -11,18 +11,11 @@ const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
-const FRONTEND_URI = 'https://video-editor-app-frontend.vercel.app'
-const BACKEND_URI = 'https://video-editor-app-backend.onrender.com'
-const DEFAULT_CLIENT_ORIGIN = FRONTEND_URI
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || DEFAULT_CLIENT_ORIGIN
-const allowedOrigins = [CLIENT_ORIGIN, FRONTEND_URI, BACKEND_URI]
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000'
 app.use(cors({
-  origin: (origin, callback) => {
-
-    if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) return callback(null, true)
-    callback(new Error('CORS policy: Origin not allowed'))
-  },
+  origin: CLIENT_ORIGIN,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
