@@ -40,7 +40,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Video Editor Backend is running 🚀');
+  res.send('Video Editor Backend is running 🚀 Made by MANYA SHUKLA');
 });
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor')
