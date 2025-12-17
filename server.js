@@ -56,8 +56,6 @@ app.use(
     credentials: true,
   })
 );
-
-/* ✅ REQUIRED FIX FOR NODE 22 (NO LOGIC CHANGE) */
 app.options('(.*)', cors());
 
 app.use(express.json());
