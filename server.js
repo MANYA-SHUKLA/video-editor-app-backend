@@ -1,19 +1,25 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
-
-dotenv.config();
 
 const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000'
+const PORT = parseInt(process.env.PORT, 10) || 5001;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor';
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
+// CORS: allow the frontend origin; allow no-origin requests (curl/server-to-server)
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow curl or server-side requests
+    if (origin === CLIENT_ORIGIN) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -23,40 +29,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${req.ip}`);
   next();
 });
 const uploadsDir = path.join(__dirname, 'uploads');
 const videosDir = path.join(uploadsDir, 'videos');
 const outputDir = path.join(__dirname, 'outputs');
-
 [uploadsDir, videosDir, outputDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create directory', dir, err);
   }
 });
 
 app.use('/api', uploadRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
+  res.status(200).json({ status: 'ok', uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
 });
 
 app.get('/', (req, res) => {
-  res.send('Video Editor Backend is running 🚀 Made by MANYA SHUKLA');
+  res.send('Video Editor Backend is running');
 });
-
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/video-editor')
-  .then(() => {
-    console.log('Connected to MongoDB');
-    const PORT = process.env.PORT || 5001;
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
+  console.error('Global error handler:', err && err.stack ? err.stack : err);
   if (err && (err.name === 'MulterError' || (err.message && err.message.toLowerCase().includes('invalid file type')))) {
     return res.status(400).json({ error: err.message });
   }
@@ -68,5 +65,40 @@ app.use((err, req, res, next) => {
   }
   res.status(err && err.status ? err.status : 500).json({ error: err && err.message ? err.message : 'Something went wrong!' });
 });
+
+let server;
+async function start() {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log('Connected to MongoDB');
+
+    server = app.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start app:', err);
+    process.exit(1);
+  }
+}
+
+start();
+
+function shutdown(signal) {
+  console.log(`Received ${signal}. Closing HTTP server and MongoDB connection...`);
+  if (server) server.close(() => {
+    mongoose.connection.close(false)
+      .then(() => {
+        console.log('MongoDB connection closed.');
+        process.exit(0);
+      })
+      .catch((err) => {
+        console.error('Error closing MongoDB connection:', err);
+        process.exit(1);
+      });
+  });
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 module.exports = app;
