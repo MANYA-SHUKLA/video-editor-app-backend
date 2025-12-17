@@ -56,20 +56,6 @@ app.use(
     credentials: true,
   })
 );
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  
-  if (origin && isOriginAllowed(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // 24 hours
-    return res.status(204).end();
-  }
-
-  return res.status(403).json({ error: 'Origin not allowed by CORS policy' });
-});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
