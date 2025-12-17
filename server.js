@@ -64,5 +64,9 @@ app.use((err, req, res, next) => {
   res.header('Access-Control-Allow-Origin', CLIENT_ORIGIN);
   res.status(500).json({ error: 'Something went wrong!' });
 });
+app.get("/", (req, res) => {
+  res.send("Video Editor Backend is running 🚀");
+});
+
 
 module.exports = app;
