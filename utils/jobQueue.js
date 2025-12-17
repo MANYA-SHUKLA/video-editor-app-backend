@@ -20,7 +20,7 @@ try {
     redis: redisConfig
   });
 
-  // Set up event listeners
+
   videoQueue.on('ready', () => {
     redisConnected = true;
     console.log('✅ Redis connected successfully - Queue features enabled');
