@@ -40,8 +40,6 @@ class FFmpegProcessor {
           '-movflags +faststart'
         ])
         .audioCodec('copy');
-
-      // Apply overlays (skipping unsupported text filters)
       this.job.overlays.forEach((overlay, index) => {
         if (overlay.type !== 'text') {
           command = this.applyOverlay(command, overlay, index);
