@@ -61,7 +61,7 @@ const uploadController = {
         });
       } catch (queueError) {
         console.error('Failed to enqueue job:', queueError);
-        // keep job as pending and record error so it can be inspected later
+
         job.status = 'pending';
         job.error = `Failed to enqueue job: ${queueError.message}`;
         try {
