@@ -43,8 +43,7 @@ const uploadController = {
         progress: 0
       });
       await job.save();
-      
-      // Process the job synchronously
+    
       (async () => {
         try {
           const processor = new FFmpegProcessor(jobId);
